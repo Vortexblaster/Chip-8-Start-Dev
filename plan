@@ -1,0 +1,4 @@
+dynamically loading roms:
+1. Persistent storage for loaded ROMS
+2. Ability to add ROMS to memory file
+  Will use file points to read file paths and write to memory file

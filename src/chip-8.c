@@ -1,6 +1,6 @@
 #define memory_size 4096
 #define pc_size 12
-#define index_size 16
+#define I_size 16
 #define address_size 16
 #define register_size 16
 
@@ -19,12 +19,12 @@ struct cpu {
     uint8_t v[register_size];
     uint16_t stack[pc_size];
     uint16_t pc;
-    uint16_t index;
+    uint16_t I;
     uint8_t sound;
     uint8_t delay;
 };
 
-void cycle(uint8_t * memory, uint16_t * stack, uint8_t * v, const char * architecture, uint8_t sound, uint8_t delay, uint16_t pc, uint16_t index){
+void cycle(uint8_t * memory, uint16_t * stack, uint8_t * v, const char * architecture, uint8_t sound, uint8_t delay, uint16_t pc, uint16_t I){
     uint16_t instruction = 0xFFFF;
     uint16_t immediate_address = 0xFFFF;
     uint8_t immediate_int = 0xFF;
@@ -139,7 +139,7 @@ void cycle(uint8_t * memory, uint16_t * stack, uint8_t * v, const char * archite
             }
             break;
         case 0xA:
-            index = immediate_address;
+            I = immediate_address;
             break;
         case 0xB:
             if (strcmp(architecture, "COSMAC") == 0) {
@@ -183,29 +183,49 @@ void cycle(uint8_t * memory, uint16_t * stack, uint8_t * v, const char * archite
                     sound = v[active_register_1];
                     break;
                 case 0x1E:
-                    index += v[active_register_1];
+                    I += v[active_register_1];
                     if (strcmp(architecture, "AMIGA") == 0) {
-                        if (index > 0x0FFF) {
+                        if (I > 0x0FFF) {
                             v[0xF] = 1;
                         }
                     }
                     break;
                 case 0x29:
-                    index = 0x50 + (5 * v[active_register_1 >> 0x8]); //font range 0x50 - 0x9F
+                    I = 0x50 + (5 * v[active_register_1 >> 0x8]); //font range 0x50 - 0x9F
                     break;
                 case 0x33:
                     uint8_t value = v[active_register_1] % 10;
-                    v[index + 2] = value;
+                    v[I + 2] = value;
                     value = (v[active_register_1] - value) % 10;
-                    v[index + 1] = value;
+                    v[I + 1] = value;
                     value = (v[active_register_1] - value) % 10;
-                    v[index] = value;
+                    v[I] = value;
                     break;
                 case 0x55:
-                    //TODO: Store
+                    if (strcmp(architecture, "COSMAC") == 0) {
+                        for (int i = 0; i <= active_register_1; i++) {
+                            memory[I] = v[i];
+                            I += 1;
+                        }
+                        I += 1; //We were at I + X -> I + X + 1
+                    } else if (strcmp(architecture, "SUPERC") == 0 || strcmp(architecture, "CHIP48") == 0) {
+                        for (int i = 0; i <= active_register_1; i++) {
+                            memory[I + i] = v[i];
+                        }
+                    }
                     break;
                 case 0x65:
-                    //TODO: Load
+                     if (strcmp(architecture, "COSMAC") == 0) {
+                        for (int i = 0; i <= active_register_1; i++) {
+                            v[i] = memory[I];
+                            I += 1;
+                        }
+                        I += 1; //We were at I + X -> I + X + 1
+                    } else if (strcmp(architecture, "SUPERC") == 0 || strcmp(architecture, "CHIP48") == 0) {
+                        for (int i = 0; i <= active_register_1; i++) {
+                            v[i] = memory[I + i];
+                        }
+                    }
                     break;
             }
             break;

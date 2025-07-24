@@ -1,36 +1,13 @@
-#define memory_size 4096
-#define pc_size 12
-#define I_size 16
-#define address_size 16
-#define register_size 16
+#include "headers/chip-8.h"
 
-#include <stdio.h>
-#include <time.h>
-#include <string.h>
-#include <stdlib.h>
-#include <stdint.h>
-
-
-unsigned int seed = time(NULL);
-srand(seed);
-
-struct cpu {
-    uint8_t memory[memory_size];
-    uint8_t v[register_size];
-    uint16_t stack[pc_size];
-    uint16_t pc;
-    uint16_t I;
-    uint8_t sound;
-    uint8_t delay;
-};
-
-void cycle(uint8_t * memory, uint16_t * stack, uint8_t * v, const char * architecture, uint8_t sound, uint8_t delay, uint16_t pc, uint16_t I){
+void cycle(uint8_t * memory, uint8_t * v, uint16_t * stack, const char * architecture, uint8_t sound, uint8_t delay, uint16_t pc, uint16_t I){
     uint16_t instruction = 0xFFFF;
     uint16_t immediate_address = 0xFFFF;
     uint8_t immediate_int = 0xFF;
     uint8_t random_num = 0xFF;
     uint8_t active_register_1 = 0xFF;
     uint8_t active_register_2 = 0xFF;
+    uint8_t top = 0;
     instruction = memory[pc] << 0x8 | memory[pc+1];
     active_register_1 = (instruction & 0x0F00) >> 0x8;
     active_register_2 = (instruction & 0x00F0) >> 0x8;
@@ -43,7 +20,7 @@ void cycle(uint8_t * memory, uint16_t * stack, uint8_t * v, const char * archite
                     printf("Clear display");
                     break;
                 case 0xEE:
-                    pc = pop(&stack);
+                    pc = pop(&top, stack);
                     break;
             }
             break;
@@ -51,7 +28,7 @@ void cycle(uint8_t * memory, uint16_t * stack, uint8_t * v, const char * archite
             pc = immediate_address;
             break;
         case 0x2:
-            push(pc, &stack);
+            push(&top, stack, pc);
             pc = immediate_address;
             break;
         case 0x3:
@@ -230,4 +207,33 @@ void cycle(uint8_t * memory, uint16_t * stack, uint8_t * v, const char * archite
             }
             break;
     }
+}
+
+int pop(uint8_t * top, uint16_t * stack) {
+    uint16_t popped = 0;
+    if (*top == -1){
+        printf("Stack underflow?\n");
+    } else {
+        popped = stack[(*top)-1]; //offset
+        stack[(*top)-1] = 0;
+        (*top)--;
+    }
+    return popped;
+}
+
+void push(uint8_t * top, uint16_t * stack, uint16_t memory_address) {
+    if (*top < pc_size) {
+        stack[*top] = memory_address;
+        (*top)++;
+    }
+}
+
+Cpu init() {
+    int seed = time(NULL);
+    srand(seed);
+    Cpu core;
+    core.cycle = cycle;
+    core.pop = pop;
+    core.push = push;
+    return core;
 }

@@ -1,4 +1,5 @@
 set(SOURCES core.c chip-8.c video.c headers/core.h headers/chip-8.h headers/video.h)
+#set(SOURCES test.c headers/test.h)
 add_executable(${PROJECT_NAME})
 target_sources(${PROJECT_NAME} PRIVATE ${SOURCES})
 

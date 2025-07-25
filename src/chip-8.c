@@ -1,18 +1,12 @@
 #include "headers/chip-8.h"
 
-void cycle(uint8_t * memory, uint8_t * v, uint16_t * stack, const char * architecture, uint8_t sound, uint8_t delay, uint16_t pc, uint16_t I){
-    uint16_t instruction = 0xFFFF;
-    uint16_t immediate_address = 0xFFFF;
-    uint8_t immediate_int = 0xFF;
-    uint8_t random_num = 0xFF;
-    uint8_t active_register_1 = 0xFF;
-    uint8_t active_register_2 = 0xFF;
-    uint8_t top = 0;
-    instruction = memory[pc] << 0x8 | memory[pc+1];
-    active_register_1 = (instruction & 0x0F00) >> 0x8;
-    active_register_2 = (instruction & 0x00F0) >> 0x8;
-    immediate_address = instruction & 0x0FFF;
-    immediate_int = instruction & 0x00FF;
+void cycle(Cpu_t * core, Frame_t * frame){
+    uint8_t top = sizeof(core->stack)/sizeof(core->stack[0]);
+    uint16_t instruction = core->memory[core->pc] << 0x8 | core->memory[core->pc+1];
+    uint16_t immediate_address = instruction & 0x0FFF;
+    uint8_t active_register_1 = (instruction & 0x0F00) >> 0x8;
+    uint8_t active_register_2 = (instruction & 0x00F0) >> 0x8;
+    uint8_t immediate_int = instruction & 0x00FF;
     switch (instruction & 0xF000) {
         case 0x0:
             switch (instruction & 0x00FF) { //We only have 00XX instructions
@@ -20,117 +14,136 @@ void cycle(uint8_t * memory, uint8_t * v, uint16_t * stack, const char * archite
                     printf("Clear display");
                     break;
                 case 0xEE:
-                    pc = pop(&top, stack);
+                    core->pc = pop(&top, core->stack);
                     break;
             }
             break;
         case 0x1:
-            pc = immediate_address;
+            core->pc = immediate_address;
             break;
         case 0x2:
-            push(&top, stack, pc);
-            pc = immediate_address;
+            push(&top, core->stack, core->pc);
+            core->pc = immediate_address;
             break;
         case 0x3:
-            if (v[active_register_1] == immediate_int) {
-                pc += 2;
+            if (core->v[active_register_1] == immediate_int) {
+                core->pc += 2;
             }
             break;
         case 0x4:
-            if (v[active_register_1] != immediate_int) {
-                pc += 2;
+            if (core->v[active_register_1] != immediate_int) {
+                core->pc += 2;
             }
             break;
         case 0x5:
-            if (v[active_register_1] == v[active_register_2]) { // maybe add switch here if I find another opcode
-                pc += 2;
+            if (core->v[active_register_1] == core->v[active_register_2]) { // maybe add switch here if core->I find another ocore->pcode
+                core->pc += 2;
             }
             break;
         case 0x6:
-            v[active_register_1] = immediate_int;
+            core->v[active_register_1] = immediate_int;
             break;
         case 0x7:
-            v[active_register_1] += immediate_int;
+            core->v[active_register_1] += immediate_int;
             break;
         case 0x8:
             switch (instruction & 0x000F) {
                 case 0x0:
-                    v[active_register_1] = v[active_register_2];
+                    core->v[active_register_1] = core->v[active_register_2];
                     break;
                 case 0x1:
-                    v[active_register_1] = v[active_register_1] | v[active_register_2];
+                    core->v[active_register_1] = core->v[active_register_1] | core->v[active_register_2];
                     break;
                 case 0x2:
-                    v[active_register_1] = v[active_register_1] & v[active_register_2];
+                    core->v[active_register_1] = core->v[active_register_1] & core->v[active_register_2];
                     break;
                 case 0x3:
-                    v[active_register_1] = v[active_register_1] ^ v[active_register_2];
+                    core->v[active_register_1] = core->v[active_register_1] ^ core->v[active_register_2];
                     break;
                 case 0x4:
-                    uint16_t add = v[active_register_1] + v[active_register_2];
+                    uint16_t add = core->v[active_register_1] + core->v[active_register_2];
                     if (add > 255) {
-                        v[0xF] = 1;
+                        core->v[0xF] = 1;
                     } else {
-                        v[0xF] = 0;
+                        core->v[0xF] = 0;
                     }
-                    v[active_register_1] = (uint8_t) add; //double check
+                    core->v[active_register_1] = (uint8_t) add; //double check
                     break;
                 case 0x5:
-                    if (v[active_register_1] > v[active_register_2]) {
-                        v[0xF] = 1;
+                    if (core->v[active_register_1] > core->v[active_register_2]) {
+                        core->v[0xF] = 1;
                     } else {
-                        v[0xF] = 0;
+                        core->v[0xF] = 0;
                     }
-                    v[active_register_1] = v[active_register_1] - v[active_register_2];
+                    core->v[active_register_1] = core->v[active_register_1] - core->v[active_register_2];
                     break;
                 case 0x6:
-                    if (strcmp(architecture, "COSMAC")) {
-                        v[active_register_1] = v[active_register_2] >> 0x1;
-                        v[0xF] = v[active_register_2] & 0x01;
-                    } else if (strcmp(architecture, "SUPERC") || strcmp(architecture, "CHIP48")) {
-                        v[0xF] = v[active_register_1] & 0x01;
-                        v[active_register_1] >>= 0x1;
+                    if (strcmp(core->architecture, "COSMAC")) {
+                        core->v[active_register_1] = core->v[active_register_2] >> 0x1;
+                        core->v[0xF] = core->v[active_register_2] & 0x01;
+                    } else if (strcmp(core->architecture, "SUPERC") || strcmp(core->architecture, "CHIP48")) {
+                        core->v[0xF] = core->v[active_register_1] & 0x01;
+                        core->v[active_register_1] >>= 0x1;
                     }
                     break;
                 case 0x7:
-                    if (v[active_register_2] > v[active_register_1]) {
-                        v[0xF] = 1;
+                    if (core->v[active_register_2] > core->v[active_register_1]) {
+                        core->v[0xF] = 1;
                     } else {
-                        v[0xF] = 0;
+                        core->v[0xF] = 0;
                     }
-                    v[active_register_1] = v[active_register_2] - v[active_register_1];
+                    core->v[active_register_1] = core->v[active_register_2] - core->v[active_register_1];
                     break;
                 case 0xE:
-                    if (strcmp(architecture, "COSMAC") == 0) {
-                        v[active_register_1] = v[active_register_2] << 0x1;
-                        v[0xF] = v[active_register_2] & 0x10;
-                    } else if (strcmp(architecture, "SUPERC") == 0 || strcmp(architecture, "CHIP48") == 0) {
-                        v[0xF] = v[active_register_1] & 0x10;
-                        v[active_register_1] <<= 0x1;
+                    if (strcmp(core->architecture, "COSMAC") == 0) {
+                        core->v[active_register_1] = core->v[active_register_2] << 0x1;
+                        core->v[0xF] = core->v[active_register_2] & 0x10;
+                    } else if (strcmp(core->architecture, "SUPERC") == 0 || strcmp(core->architecture, "CHIP48") == 0) {
+                        core->v[0xF] = core->v[active_register_1] & 0x10;
+                        core->v[active_register_1] <<= 0x1;
                     }
             }
             break;
         case 0x9:
-            if (v[active_register_1] != v[active_register_2]) {
-                pc += 2;
+            if (core->v[active_register_1] != core->v[active_register_2]) {
+                core->pc += 2;
             }
             break;
         case 0xA:
-            I = immediate_address;
+            core->I = immediate_address;
             break;
         case 0xB:
-            if (strcmp(architecture, "COSMAC") == 0) {
-                pc = immediate_address + v[0x0];
-            } else if (strcmp(architecture, "SUPERC") == 0 || strcmp(architecture, "CHIP48") == 0) {
-                pc = immediate_address + v[active_register_1];
+            if (strcmp(core->architecture, "COSMAC") == 0) {
+                core->pc = immediate_address + core->v[0x0];
+            } else if (strcmp(core->architecture, "SUPERC") == 0 || strcmp(core->architecture, "CHIP48") == 0) {
+                core->pc = immediate_address + core->v[active_register_1];
             }
             break;
         case 0xC:
-            random_num = rand() % 0xFF;
-            v[active_register_1] = random_num & immediate_int;
+            uint8_t random_num = 0;
+            random_num = (uint8_t) rand() % 0xFF;
+            core->v[active_register_1] = random_num & immediate_int;
             break;
         case 0xD:
-            printf("Display");
+            uint8_t x = core->v[active_register_1];
+            uint8_t y = core->v[active_register_2];
+            uint8_t z = immediate_int & 0x0F; //immediate int holds last byte so mask of MSN
+            uint8_t sprite = core->memory[core->I];
+            uint8_t currentPixelValue = 0;
+            uint16_t calculatedIndex = 0;
+            if(SDL_MUSTLOCK(frame->frameSurface)) {
+                SDL_LockSurface(frame->frameSurface);
+            }
+            uint8_t * pixels = (uint8_t *) frame->frameSurface->pixels;
+            if(SDL_MUSTLOCK(frame->frameSurface)) {
+                SDL_UnlockSurface(frame->frameSurface);
+            }
+            for (uint8_t j = 0; j < z; j++) {
+                calculatedIndex = (uint16_t) (((y + j) * frame->frameSurface->pitch / sizeof(uint8_t)) + x);
+                currentPixelValue = pixels[calculatedIndex];
+                pixels[calculatedIndex] = core->memory[core->I + j] ^ currentPixelValue; //this is not right fix
+            }
+            //frame->screenArray;
             break;
         case 0xE:
             switch (instruction & 0x00FF) {
@@ -145,62 +158,62 @@ void cycle(uint8_t * memory, uint8_t * v, uint16_t * stack, const char * archite
         case 0xF:
             switch (instruction & 0x00FF) {
                 case 0x07:
-                    v[active_register_1] = delay;
+                    core->v[active_register_1] = core->delay;
                     break;
                 case 0x0A:
-                    pc -= 2; //undo fetch increment
+                    core->pc -= 2; //undo fetch increment
                     printf("Waiting for input");
-                    //v[active_register_1] = input_value;
-                    pc += 2;
+                    //core->v[active_register_1] = input_value;
+                    core->pc += 2;
                     break;
                 case 0x15:
-                    delay = v[active_register_1];
+                    core->delay = core->v[active_register_1];
                     break;
                 case 0x18:
-                    sound = v[active_register_1];
+                    core->sound = core->v[active_register_1];
                     break;
                 case 0x1E:
-                    I += v[active_register_1];
-                    if (strcmp(architecture, "AMIGA") == 0) {
-                        if (I > 0x0FFF) {
-                            v[0xF] = 1;
+                    core->I += core->v[active_register_1];
+                    if (strcmp(core->architecture, "AMIGA") == 0) {
+                        if (core->I > 0x0FFF) {
+                            core->v[0xF] = 1;
                         }
                     }
                     break;
                 case 0x29:
-                    I = 0x50 + (5 * v[active_register_1 >> 0x8]); //font range 0x50 - 0x9F
+                    core->I = 0x50 + (5 * core->v[active_register_1 >> 0x8]); //font range 0x50 - 0x9F
                     break;
                 case 0x33:
-                    uint8_t value = v[active_register_1] % 10;
-                    v[I + 2] = value;
-                    value = (v[active_register_1] - value) % 10;
-                    v[I + 1] = value;
-                    value = (v[active_register_1] - value) % 10;
-                    v[I] = value;
+                    uint8_t value = core->v[active_register_1] % 10;
+                    core->v[core->I + 2] = value;
+                    value = (core->v[active_register_1] - value) % 10;
+                    core->v[core->I + 1] = value;
+                    value = (core->v[active_register_1] - value) % 10;
+                    core->v[core->I] = value;
                     break;
                 case 0x55:
-                    if (strcmp(architecture, "COSMAC") == 0) {
+                    if (strcmp(core->architecture, "COSMAC") == 0) {
                         for (int i = 0; i <= active_register_1; i++) {
-                            memory[I] = v[i];
-                            I += 1;
+                            core->memory[core->I] = core->v[i];
+                            core->I += 1;
                         }
-                        I += 1; //We were at I + X -> I + X + 1
-                    } else if (strcmp(architecture, "SUPERC") == 0 || strcmp(architecture, "CHIP48") == 0) {
+                        core->I += 1; //We were at I + X -> I + X + 1
+                    } else if (strcmp(core->architecture, "SUPERC") == 0 || strcmp(core->architecture, "CHIP48") == 0) {
                         for (int i = 0; i <= active_register_1; i++) {
-                            memory[I + i] = v[i];
+                            core->memory[core->I + i] = core->v[i];
                         }
                     }
                     break;
                 case 0x65:
-                     if (strcmp(architecture, "COSMAC") == 0) {
+                     if (strcmp(core->architecture, "COSMAC") == 0) {
                         for (int i = 0; i <= active_register_1; i++) {
-                            v[i] = memory[I];
-                            I += 1;
+                            core->v[i] = core->memory[core->I];
+                            core->I += 1;
                         }
-                        I += 1; //We were at I + X -> I + X + 1
-                    } else if (strcmp(architecture, "SUPERC") == 0 || strcmp(architecture, "CHIP48") == 0) {
+                        core->I += 1; //We were at I + X -> I + X + 1
+                    } else if (strcmp(core->architecture, "SUPERC") == 0 || strcmp(core->architecture, "CHIP48") == 0) {
                         for (int i = 0; i <= active_register_1; i++) {
-                            v[i] = memory[I + i];
+                            core->v[i] = core->memory[core->I + i];
                         }
                     }
                     break;
@@ -228,12 +241,38 @@ void push(uint8_t * top, uint16_t * stack, uint16_t memory_address) {
     }
 }
 
-Cpu init() {
+Cpu_t createEmulator(char architecture[], uint8_t font[], uint8_t fontByteLength, uint8_t program[], uint16_t programByteLength) {
     int seed = time(NULL);
     srand(seed);
-    Cpu core;
+    Cpu_t core;
+    core.architecture = architecture;
+    memset(core.memory, 0, sizeof(core.memory));
+    memset(core.v, 0, sizeof(core.v));
+    memset(core.stack, 0, sizeof(core.stack));
+    core.pc = 0;
+    core.I = 0;
+    core.sound = 0;
+    core.delay = 0;
     core.cycle = cycle;
-    core.pop = pop;
-    core.push = push;
+    //put load font stuff here
+    //font offset = 0x50; //set in main
+    for (uint8_t i = 0; i < fontByteLength; i++) { //make larger for fonts more than 256 bytes long
+        core.memory[i + 0x50] = font[i];
+    }
+    for (uint16_t i = 0; i < programByteLength; i++) {
+        core.memory[i + 0x200] = program[i]; //this is how we will load the ROM
+    }
     return core;
+}
+
+void destroyEmulator(Cpu_t * core) {
+    core->architecture = NULL;
+    memset(core->memory, 0, sizeof(core->memory));
+    memset(core->v, 0, sizeof(core->v));
+    memset(core->stack, 0, sizeof(core->stack));
+    core->pc = 0;
+    core->I = 0;
+    core->sound = 0;
+    core->delay = 0;
+    core->cycle = cycle;
 }

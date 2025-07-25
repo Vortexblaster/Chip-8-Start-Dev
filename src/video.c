@@ -5,6 +5,7 @@ bool initDisplay(SDL_Window * *window) {
     if (!success) {
         SDL_Log("Initialization failed: %s\n", SDL_GetError());
     }
+
     return success;
 }
 
@@ -21,7 +22,7 @@ bool makeWindow(SDL_Window * * window, SDL_Surface * * screenSurface) {
     }
 }
 
-void run(SDL_Window * * window, SDL_Surface * * screenSurface) {
+void run(SDL_Window * * window, SDL_Surface * * screenSurface, Frame_t * frame) {
     bool quit = false;
     SDL_Event e;
     SDL_zero(e);
@@ -31,7 +32,8 @@ void run(SDL_Window * * window, SDL_Surface * * screenSurface) {
                 quit = true;
             }
         }
-        SDL_FillSurfaceRect(*screenSurface, NULL, SDL_MapSurfaceRGB(*screenSurface, 0xFF, 0xFF, 0xFF));
+        SDL_FillSurfaceRect(*screenSurface, NULL, SDL_MapSurfaceRGB(*screenSurface, 0x0, 0x0, 0x0));
+
         SDL_UpdateWindowSurface(*window);
     }
 }
@@ -40,4 +42,29 @@ void cleanupDisplay(SDL_Window * * window, SDL_Surface * * screenSurface) {
     SDL_DestroySurface(*screenSurface); //double free of destroying a surface on a window then the window?
     SDL_DestroyWindow(*window);
     SDL_Quit();
+}
+
+Frame_t createFrame(SDL_Surface * *  frameSurface, uint16_t resolutionX, uint16_t resolutionY) {
+    Frame_t frame;
+    frame.resolutionX = resolutionX;
+    frame.resolutionY = resolutionY;
+    frame.frameSurface = SDL_CreateSurface(resolutionX, resolutionY, SDL_PIXELFORMAT_INDEX1MSB); //Using this pixel format
+
+//  frame.screenArray = (uint8_t * *) calloc((size_t) frame.resolutionY, sizeof(uint8_t *));
+//    for (uint16_t j = 0; j < frame.resolutionY; j++) {
+//        frame.screenArray[j] = calloc((size_t) frame.resolutionX, sizeof(uint8_t));
+//    }
+    return frame;
+}
+
+void destroyFrame(Frame_t * frame) { //NULL stack portions of struct and free heap
+//    for (uint16_t j = 0; j < frame->resolutionY; j++) {
+//        free(frame->screenArray[j]);
+//    }
+//    free(frame->screenArray);
+//    frame->screenArray = NULL;
+    frame->resolutionX = 0;
+    frame->resolutionY = 0;
+    SDL_DestroySurface(frame->frameSurface);
+    frame->frameSurface = NULL;
 }

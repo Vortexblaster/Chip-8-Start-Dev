@@ -53,15 +53,32 @@ int main() {
     if (!makeWindow(window, screenSurface, programName)) {
         return -2;
     }
-    uint16_t resolutionX = 0;
-    uint16_t resolutionY = 0;
-    Frame_t frame = createFrame(resolutionX, resolutionY);
+    uint16_t resolutionX = 64;
+    uint16_t resolutionY = 32;
+    SDL_Surface * frameSurface = SDL_CreateSurface((int) resolutionX, (int) resolutionY, SDL_PIXELFORMAT_INDEX1LSB);
+    SDL_Palette * surfacePalette = SDL_CreateSurfacePalette(frameSurface);
+    printf("Pixel format %d\n", SDL_PIXELFORMAT_INDEX1LSB);
+    printf("This is the height: %d, and width %d of the surface just created\n",frameSurface->h, frameSurface->w);
+    printf("This is the frame surface before createFrame: %ld\n", (long) frameSurface);
+    Frame_t * frame = (Frame_t *) malloc(sizeof(Frame_t));
+    *frame = createFrame(resolutionX, resolutionY, frameSurface, surfacePalette);
+    printf("This is the frame surface returned from createFrame & before createEmulator: %ld\n", (long) frame->frameSurface);
+    //printf("Trying to access %ld:\n", (long) frame.frameSurface);
+    //printf("Frame surface width: %d, height: %d", frame.frameSurface->w, frame.frameSurface->h);
     uint8_t clockSpeedMHz = 1;
-    Cpu_t core = createEmulator(architecture, clockSpeedMHz, font, fontByteLength, program, programByteLength, keypad, &frame);
-    run(window, screenSurface, &core);
-    destroyFrame(&frame); //destroy frame before screen
-    destroyEmulator(&core);
+    printf("This is the frame before createEmulator: %ld\n", (long) frame);
+    Cpu_t * core = (Cpu_t *) malloc(sizeof(Cpu_t));
+    *core = createEmulator(architecture, clockSpeedMHz, font, fontByteLength, program, programByteLength, keypad, frame);
+    printf("This is the frame returned from createEmulator: %ld\n", (long) core->processFrame);
+    printf("This is the frame surface after createEmulator: %ld\n", (long) core->processFrame->frameSurface);
+    printf("This is the frame surface refcount after createEmulator: %d\n", core->processFrame->frameSurface->refcount);
+    printf("This is the cpu before run: %ld\n", (long) core);
+    run(window, screenSurface, core);
+    printf("This is the frame in cpu after run in main: %ld\n", (long) core->processFrame);
+    destroyFrame(frame); //destroy frame before screen
+    destroyEmulator(core);
     cleanupDisplay(window, screenSurface);
+    free(core);
     free(program);
     window = NULL;
     screenSurface = NULL;

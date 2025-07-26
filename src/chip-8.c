@@ -279,7 +279,11 @@ Cpu_t createEmulator(char architecture[], uint8_t clockSpeedMHz, uint8_t font[],
     core.sound = 0;
     core.delay = 0;
     core.cycle = cycle;
-    core.processFrame = frame;
+    printf("This is the frame before assignment inside createEmulator: %ld\n", (long) frame);
+    printf("This is the frame surface before assignment inside createEmulator: %ld\n", (long) frame->frameSurface);
+    core.processFrame = frame; //copy frame
+    printf("This is the frame after assignment inside createEmulator: %ld\n", (long) core.processFrame);
+    printf("This is the frame surface after assignment inside createEmulator: %ld\n", (long) core.processFrame->frameSurface);
     //put load font stuff here
     //font offset = 0x50; //set in main
     for (uint8_t i = 0; i < keypad_size; i++) {

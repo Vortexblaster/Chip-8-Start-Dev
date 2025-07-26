@@ -23,6 +23,13 @@ bool makeWindow(SDL_Window * window, SDL_Surface * screenSurface, char * program
 }
 
 void run(SDL_Window * window, SDL_Surface * screenSurface, Cpu_t * core) {
+    //passing the cpu seems to change its reference to frame when I pass it by reference
+    //not sure why. The Cpu_t * has the correct reference for the struct passed. For some reason
+    //the value of processFrame changes at somepoint between main and running this function.
+    //As far as I can tell the offset doesn't have a pattern. I may be wrong however.  Does referencing
+    //the Cpu struct affect my reference to my frame struct??
+    printf("This is the cpu inside run before poll loop: %ld\n", (long) core);
+    printf("This is the frame inside run before poll loop: %ld\n", (long) core->processFrame);
     bool quit = false;
     SDL_Event e;
     SDL_zero(e);
@@ -41,12 +48,16 @@ void run(SDL_Window * window, SDL_Surface * screenSurface, Cpu_t * core) {
                         }
                         //int h = core->processFrame->frameSurface->h;
                         //int w = core->processFrame->frameSurface->w;
+                        printf("This is the cpu inside run: %ld\n", (long) core);
+                        printf("This is the frame inside run: %ld\n", (long) core->processFrame);
+                        printf("This is the frame surface inside run: %ld\n", (long) core->processFrame->frameSurface);
+                        //printf("This is the refcount inside run: %d\n", core->processFrame->frameSurface->refcount);
                         if (core->processFrame->frameSurface == NULL) {
                             printf("The surface is NULL!");
                         }
                         //uint8_t * pixels = (uint8_t *) core->processFrame->frameSurface->pixels;
                         //for (int i = 0; i < h*w; i++) {
-                            //printf("pixel [%d] : %u", i, pixels[i]);
+                        //    printf("pixel [%d] : %u", i, pixels[i]);
                             //the problem is this damn surface may not be properly initalized am I falling out of scope?
                         //}
                     }
@@ -74,15 +85,19 @@ void cleanupDisplay(SDL_Window * window, SDL_Surface * screenSurface) {
     SDL_Quit();
 }
 
-Frame_t createFrame(uint16_t resolutionX, uint16_t resolutionY) {
+Frame_t createFrame(uint16_t resolutionX, uint16_t resolutionY, SDL_Surface * frameSurface, SDL_Palette * surfacePalette) {
     Frame_t frame;
     frame.resolutionX = resolutionX;
     frame.resolutionY = resolutionY;
-    frame.frameSurface = SDL_CreateSurface(resolutionX, resolutionY, SDL_PIXELFORMAT_INDEX1LSB); //Using this pixel format maybe MSB dbl check in testing
+    //frame.frameSurface = SDL_CreateSurface(resolutionX, resolutionY, SDL_PIXELFORMAT_INDEX1LSB); //Using this pixel format maybe MSB dbl check in testing
+    printf("This is the frame surface inside createFrame before assignment: %ld\n", (long) frameSurface);
+    frame.frameSurface = frameSurface;
+    printf("This is the frame surface inside createFrame after assignment: %ld\n", (long) frame.frameSurface);
     if (frame.frameSurface == NULL) {
         SDL_Log("Frame surface creation failed: %s\n", SDL_GetError());
     } else {
-        frame.surfacePalette = SDL_CreateSurfacePalette(frame.frameSurface);
+    //    frame.surfacePalette = SDL_CreateSurfacePalette(frame.frameSurface);
+        frame.surfacePalette = surfacePalette;
     }
 //  frame.screenArray = (uint8_t * *) calloc((size_t) frame.resolutionY, sizeof(uint8_t *));
 //    for (uint16_t j = 0; j < frame.resolutionY; j++) {

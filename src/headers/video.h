@@ -45,7 +45,7 @@ typedef struct Frame_s {
     uint16_t resolutionX;
     uint16_t resolutionY;
 } Frame_t;
-Frame_t createFrame(uint16_t, uint16_t);
+Frame_t createFrame(uint16_t, uint16_t, SDL_Surface *, SDL_Palette *);
 void destroyFrame(Frame_t *);
 bool initDisplay(SDL_Window * );
 bool makeWindow(SDL_Window *, SDL_Surface *, char *);

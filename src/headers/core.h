@@ -6,3 +6,6 @@
 #include <stdlib.h>
 #include <stdint.h>
 #endif
+#ifndef CORE_H_
+#define CORE_H_
+#endif

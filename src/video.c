@@ -22,19 +22,18 @@ bool makeWindow(SDL_Window * window, SDL_Surface * screenSurface, char * program
     }
 }
 
-void run(SDL_Window * window, SDL_Surface * screenSurface, Cpu_t * core) {
+void run(SDL_Window * window, SDL_Surface * screenSurface, Cpu_t * core, Frame_t * frame) {
     //passing the cpu seems to change its reference to frame when I pass it by reference
     //not sure why. The Cpu_t * has the correct reference for the struct passed. For some reason
     //the value of processFrame changes at somepoint between main and running this function.
     //As far as I can tell the offset doesn't have a pattern. I may be wrong however.  Does referencing
     //the Cpu struct affect my reference to my frame struct??
     printf("This is the cpu inside run before poll loop: %ld\n", (long) core);
-    printf("This is the frame inside run before poll loop: %ld\n", (long) core->processFrame);
+    printf("This is the frame inside run before poll loop: %ld\n", (long) frame);
     bool quit = false;
     SDL_Event e;
     SDL_zero(e);
     while (!quit) {
-        SDL_FillSurfaceRect(screenSurface, NULL, SDL_MapSurfaceRGB(screenSurface, 0x0, 0x0, 0x0));
         while (SDL_PollEvent(&e)) {
             switch (e.type) {
                 case SDL_EVENT_QUIT:
@@ -43,23 +42,25 @@ void run(SDL_Window * window, SDL_Surface * screenSurface, Cpu_t * core) {
                 case SDL_EVENT_MOUSE_BUTTON_DOWN:
                     if (e.button.button == SDL_BUTTON_LEFT) {
                         for (int i = 0; i < 1; i++) {
-                            core->cycle(core);
-                            //SDL_BlitSurfaceScaled(core->processFrame->frameSurface, NULL, screenSurface, NULL, SDL_SCALEMODE_NEAREST);
+                            core->cycle(core, frame);
                         }
-                        //int h = core->processFrame->frameSurface->h;
-                        //int w = core->processFrame->frameSurface->w;
-                        printf("This is the cpu inside run: %ld\n", (long) core);
-                        printf("This is the frame inside run: %ld\n", (long) core->processFrame);
-                        printf("This is the frame surface inside run: %ld\n", (long) core->processFrame->frameSurface);
-                        //printf("This is the refcount inside run: %d\n", core->processFrame->frameSurface->refcount);
-                        if (core->processFrame->frameSurface == NULL) {
+                        SDL_BlitSurfaceScaled(frame->frameSurface, NULL, screenSurface, NULL, SDL_SCALEMODE_NEAREST);
+
+                        SDL_UpdateWindowSurface(window);
+                        //int h = frame->frameSurface->h;
+                        //int w = frame->frameSurface->w;
+                        //printf("This is the cpu inside run: %ld\n", (long) core);
+                        //printf("This is the frame inside run: %ld\n", (long) frame);
+                        //printf("This is the frame surface inside run: %ld\n", (long) frame->frameSurface);
+                        //printf("This is the refcount inside run: %d\n", frame->frameSurface->refcount);
+                        if (frame->frameSurface == NULL) {
                             printf("The surface is NULL!");
                         }
-                        //uint8_t * pixels = (uint8_t *) core->processFrame->frameSurface->pixels;
-                        //for (int i = 0; i < h*w; i++) {
-                        //    printf("pixel [%d] : %u", i, pixels[i]);
-                            //the problem is this damn surface may not be properly initalized am I falling out of scope?
-                        //}
+//                        uint8_t * pixels = (uint8_t *) frame->frameSurface->pixels;
+//                        for (int i = 0; i < h*w; i++) {
+//                            printf("pixel [%d] : %u ", i, pixels[i]);
+//                            //the problem is this damn surface may not be properly initalized am I falling out of scope?
+//                        }
                     }
                     break;
                 case SDL_EVENT_KEY_DOWN:
@@ -73,9 +74,9 @@ void run(SDL_Window * window, SDL_Surface * screenSurface, Cpu_t * core) {
 
 
             }
+
         }
-        //SDL_BlitSurface(core->processFrame->frameSurface, NULL, screenSurface, NULL);
-        SDL_UpdateWindowSurface(window);
+        //SDL_BlitSurface(frame->frameSurface, NULL, screenSurface, NULL);
     }
 }
 

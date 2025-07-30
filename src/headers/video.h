@@ -15,7 +15,7 @@
 #include "SDL3/SDL_keycode.h"
 typedef struct Cpu_s Cpu_t;
 typedef struct Frame_s Frame_t;
-typedef void (*Cycle)(Cpu_t *);
+typedef void (*Cycle)(Cpu_t *, Frame_t *);
 typedef struct Cpu_s {
     uint8_t memory[memory_size];
     uint8_t v[register_size];
@@ -49,6 +49,6 @@ Frame_t createFrame(uint16_t, uint16_t, SDL_Surface *, SDL_Palette *);
 void destroyFrame(Frame_t *);
 bool initDisplay(SDL_Window * );
 bool makeWindow(SDL_Window *, SDL_Surface *, char *);
-void run(SDL_Window *, SDL_Surface *, Cpu_t *);
+void run(SDL_Window *, SDL_Surface *, Cpu_t *, Frame_t *);
 void cleanupDisplay(SDL_Window *,SDL_Surface *);
 #endif

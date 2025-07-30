@@ -26,7 +26,7 @@ typedef struct Frame_s {
 #define pc_size 12
 #define keypad_size 16
 typedef struct Cpu_s Cpu_t;
-typedef void (*Cycle)(Cpu_t *);
+typedef void (*Cycle)(Cpu_t *, Frame_t *);
 typedef struct Cpu_s {
     uint8_t memory[memory_size];
     uint8_t v[register_size];
@@ -37,14 +37,13 @@ typedef struct Cpu_s {
     uint8_t delay;
     Cycle cycle;
     uint8_t clockSpeedMHz;
-    Frame_t  * processFrame;
     char * architecture;
     SDL_Keycode keypad[keypad_size*2];
     SDL_Keycode currentKey;
 } Cpu_t;
-void cycle(Cpu_t *);
+void cycle(Cpu_t *, Frame_t *);
 int pop(uint8_t *, uint16_t *);
 void push(uint8_t *, uint16_t *, uint16_t);
-Cpu_t createEmulator(char *, uint8_t, uint8_t *, uint8_t, uint8_t *, uint16_t, SDL_Keycode *, Frame_t *);
+Cpu_t createEmulator(char *, uint8_t, uint8_t *, uint8_t, uint8_t *, uint16_t, SDL_Keycode *);
 void destroyEmulator(Cpu_t *);
 #endif

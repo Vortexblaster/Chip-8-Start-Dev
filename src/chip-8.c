@@ -1,30 +1,37 @@
 #include "headers/chip-8.h"
 #define DEBUG true
 
-void cycle(Cpu_t * core){
+void cycle(Cpu_t * core, Frame_t * frame){
     uint8_t top = pc_size;
     uint16_t instruction = core->memory[core->pc] << 0x8 | core->memory[core->pc+1];
     uint16_t immediate_address = instruction & 0x0FFF;
     uint8_t active_register_1 = (instruction & 0x0F00) >> 0x8;
     uint8_t active_register_2 = (instruction & 0x00F0) >> 0x8;
     uint8_t immediate_int = instruction & 0x00FF;
-    core->pc += 2;
+    core->pc = (core->pc < memory_size) ? core->pc + 2 : 0x200; //increment until the end of memory then restart execution
     if (DEBUG) {
-        printf("PC: %u  |  Instruction: %u\n", instruction, core->pc-2);
+        printf("PC: %#x  |  Instruction: %#x\n",(int)  core->pc-2, (int) instruction);
     }
-    switch (instruction & 0xF000) {
+    printf("First switch %#x\n", (int) instruction & 0xF000);
+    switch ((instruction & 0xF000) >> 12) {
         case 0x0:
-            switch (instruction & 0x00FF) { //We only have 00XX instructions
+            switch ((instruction & 0x00FF) >> 8) { //We only have 00XX instructions
                 case 0xE0:
-                    printf("Clear display");
+                    SDL_FillSurfaceRect(frame->frameSurface, NULL, SDL_MapSurfaceRGB(frame->frameSurface, 0xFF, 0x0, 0xFF));
+                    printf("Clear display\n");
                     break;
                 case 0xEE:
                     core->pc = pop(&top, core->stack);
+                    printf("Popped: %#x\n Stack: ", core->pc);
+                    for (uint8_t i = 0; i < top; i++) {
+                        printf("           [%u] - %#x\n", (top - i), (int) core->stack[i]);
+                    }
                     break;
             }
             break;
         case 0x1:
             core->pc = immediate_address;
+            printf("Jump to immediate: %#x\n", (int) immediate_address);
             break;
         case 0x2:
             push(&top, core->stack, core->pc);
@@ -47,9 +54,12 @@ void cycle(Cpu_t * core){
             break;
         case 0x6:
             core->v[active_register_1] = immediate_int;
+            printf("set v%u to %u\n", active_register_1, immediate_int);
             break;
         case 0x7:
+            printf("Adding to v%u: %u + %u\n", active_register_1, core->v[active_register_1], immediate_int);
             core->v[active_register_1] += immediate_int;
+
             break;
         case 0x8:
             switch (instruction & 0x000F) {
@@ -116,6 +126,7 @@ void cycle(Cpu_t * core){
             break;
         case 0xA:
             core->I = immediate_address;
+            printf("Set I: %#x\n", (int) immediate_address);
             break;
         case 0xB:
             if (strcmp(core->architecture, "COSMAC") == 0) {
@@ -130,42 +141,42 @@ void cycle(Cpu_t * core){
             core->v[active_register_1] = random_num & immediate_int;
             break;
         case 0xD:
-            uint8_t x = core->v[active_register_1] & (uint8_t) (core->processFrame->resolutionX-1);
-            uint8_t y = core->v[active_register_2] & (uint8_t) (core->processFrame->resolutionY-1);
+            uint8_t x = core->v[active_register_1] & (uint8_t) (frame->resolutionX-1);
+            uint8_t y = core->v[active_register_2] & (uint8_t) (frame->resolutionY-1);
             core->v[0xF] = 0;
             uint8_t z = immediate_int & 0x0F; //immediate int holds last byte so mask off MSN
             uint8_t sprite[8];
             memset(sprite, 0, sizeof(sprite));
             uint8_t currentPixelValue = 0;
             uint16_t calculatedIndex = 0;
-            if(SDL_MUSTLOCK(core->processFrame->frameSurface)) {
-                SDL_LockSurface(core->processFrame->frameSurface);
+            if(SDL_MUSTLOCK(frame->frameSurface)) {
+                SDL_LockSurface(frame->frameSurface);
             }
-            uint8_t * pixels = (uint8_t *) core->processFrame->frameSurface->pixels;
+            uint8_t * pixels = (uint8_t *) frame->frameSurface->pixels;
 
             for (uint8_t n = 0; n < z; n++) {
                 for (uint8_t pixel = 0; pixel < sizeof(sprite); pixel++) {
                     sprite[pixel] = (core->memory[core->I + n] >> (sizeof(sprite) - pixel)) & 0x1; // & 0x1 to ensure only last bit
-                    calculatedIndex = (uint16_t) ((y * core->processFrame->frameSurface->pitch / sizeof(uint8_t)) + x);
+                    calculatedIndex = (uint16_t) ((y * frame->frameSurface->pitch / sizeof(uint8_t)) + x);
                     currentPixelValue = pixels[calculatedIndex] & 0x1;
                     pixels[calculatedIndex] = sprite[pixel] ^ currentPixelValue;
                     if (currentPixelValue == sprite[pixel]) {
                         core->v[0xF] = 1; //set flag
                     }
-                    if (x % (core->processFrame->frameSurface->w-1) != 0) {
+                    if (x % (frame->frameSurface->w-1) != 0) {
                         x += 1; //move horizontally
                     } else {
                         break; //reached left edge of screen
                     }
                 }
-                if (y % (core->processFrame->frameSurface->h-1) != 0) { //may have to change depending on h
+                if (y % (frame->frameSurface->h-1) != 0) { //may have to change depending on h
                     y += 1; //move vertically
                 } else {
                     break; //reached edge of screen
                 }
             }
-            if(SDL_MUSTLOCK(core->processFrame->frameSurface)) {
-                SDL_UnlockSurface(core->processFrame->frameSurface);
+            if(SDL_MUSTLOCK(frame->frameSurface)) {
+                SDL_UnlockSurface(frame->frameSurface);
             }
             break;
         case 0xE:
@@ -264,7 +275,7 @@ void push(uint8_t * top, uint16_t * stack, uint16_t memory_address) {
     }
 }
 
-Cpu_t createEmulator(char architecture[], uint8_t clockSpeedMHz, uint8_t font[], uint8_t fontByteLength, uint8_t program[], uint16_t programByteLength, SDL_Keycode * keypad, Frame_t * frame) {
+Cpu_t createEmulator(char architecture[], uint8_t clockSpeedMHz, uint8_t font[], uint8_t fontByteLength, uint8_t program[], uint16_t programByteLength, SDL_Keycode * keypad) {
     int seed = time(NULL);
     srand(seed);
     Cpu_t core;
@@ -279,11 +290,6 @@ Cpu_t createEmulator(char architecture[], uint8_t clockSpeedMHz, uint8_t font[],
     core.sound = 0;
     core.delay = 0;
     core.cycle = cycle;
-    printf("This is the frame before assignment inside createEmulator: %ld\n", (long) frame);
-    printf("This is the frame surface before assignment inside createEmulator: %ld\n", (long) frame->frameSurface);
-    core.processFrame = frame; //copy frame
-    printf("This is the frame after assignment inside createEmulator: %ld\n", (long) core.processFrame);
-    printf("This is the frame surface after assignment inside createEmulator: %ld\n", (long) core.processFrame->frameSurface);
     //put load font stuff here
     //font offset = 0x50; //set in main
     for (uint8_t i = 0; i < keypad_size; i++) {
@@ -310,6 +316,5 @@ void destroyEmulator(Cpu_t * core) {
     core->sound = 0;
     core->delay = 0;
     core->cycle = cycle;
-    core->processFrame = NULL;
     core->currentKey = 0;
 }

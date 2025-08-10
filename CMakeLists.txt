@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.24)
 project(CHIP-8 C)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
-
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    add_compile_options(-g3)
+endif()
 add_subdirectory(vendored)
 add_subdirectory(src)

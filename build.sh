@@ -12,6 +12,7 @@ fi
 
 cd build
 cmake .. -DBUILD_SHARED_LIBS=OFF
+cmake .. -DCMAKE_BUILD_TYPE=DEBUG
 cmake --build . --parallel $(nproc)
 mv CHIP-8 ../
 cd ../

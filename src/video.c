@@ -37,7 +37,7 @@ void run(SDL_Window * window, SDL_Surface * screenSurface, Cpu_t * core) {
                     if (e.button.button == SDL_BUTTON_LEFT) {
                         for (int i = 0; i < 1; i++) {
                             core->cycle(core);
-                            //SDL_BlitSurfaceScaled(core->processFrame->frameSurface, NULL, screenSurface, NULL, SDL_SCALEMODE_NEAREST);
+                            SDL_BlitSurfaceScaled(core->processFrame->frameSurface, NULL, screenSurface, NULL, SDL_SCALEMODE_NEAREST);
                         }
                         //int h = core->processFrame->frameSurface->h;
                         //int w = core->processFrame->frameSurface->w;
